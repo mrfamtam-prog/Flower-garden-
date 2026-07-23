@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Flower Garden For You</title>
     <style>
         * {
@@ -11,14 +11,15 @@
             box-sizing: border-box;
             user-select: none;
             -webkit-user-select: none;
+            touch-action: none;
         }
 
         body, html {
             width: 100%;
             height: 100%;
             overflow: hidden;
-            background-color: #050508;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: radial-gradient(circle at center, #110d1a 0%, #05040a 100%);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
         }
 
         #gardenCanvas {
@@ -36,24 +37,25 @@
             position: absolute;
             top: 25px;
             left: 25px;
-            color: rgba(255, 255, 255, 0.7);
+            color: rgba(255, 255, 255, 0.75);
             font-size: 14px;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.8px;
             z-index: 10;
             pointer-events: none;
+            font-weight: 300;
         }
 
         /* Center Instruction Overlay */
         .instruction-box {
             position: absolute;
-            top: 40%;
+            top: 42%;
             left: 50%;
             transform: translate(-50%, -50%);
             text-align: center;
             color: #ffffff;
             z-index: 5;
             pointer-events: none;
-            transition: opacity 0.8s ease;
+            transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .instruction-box.hidden {
@@ -61,48 +63,49 @@
         }
 
         .instruction-box .sub-text {
-            font-size: 16px;
+            font-size: 15px;
             color: #d1c4e9;
             font-weight: 300;
+            letter-spacing: 0.5px;
         }
 
         .instruction-box h1 {
-            font-size: 38px;
-            margin: 8px 0;
+            font-size: 42px;
+            margin: 6px 0;
             font-weight: 600;
-            letter-spacing: 1px;
-            background: linear-gradient(45deg, #ff80ab, #ea80fc, #8c9eff);
+            letter-spacing: 1.5px;
+            background: linear-gradient(135deg, #ff80ab 0%, #ea80fc 50%, #8c9eff 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            text-shadow: 0px 0px 20px rgba(234, 128, 252, 0.3);
+            text-shadow: 0px 0px 25px rgba(234, 128, 252, 0.4);
         }
 
         .instruction-box .hint-text {
-            font-size: 14px;
-            color: rgba(255, 255, 255, 0.6);
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.55);
         }
 
         /* Controls / Buttons */
         .controls {
             position: absolute;
-            bottom: 40px;
+            bottom: 45px;
             left: 50%;
             transform: translateX(-50%);
             display: flex;
-            gap: 15px;
+            gap: 16px;
             z-index: 10;
         }
 
         .btn {
-            background: rgba(255, 255, 255, 0.08);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.07);
+            border: 1px solid rgba(255, 255, 255, 0.18);
             color: rgba(255, 255, 255, 0.9);
-            padding: 8px 18px;
-            border-radius: 20px;
+            padding: 9px 20px;
+            border-radius: 25px;
             font-size: 13px;
             cursor: pointer;
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
             transition: all 0.3s ease;
             display: flex;
             align-items: center;
@@ -115,14 +118,10 @@
             transform: translateY(-2px);
         }
 
-        .btn:active {
-            transform: translateY(0);
-        }
-
         .btn.active {
-            background: rgba(234, 128, 252, 0.25);
+            background: rgba(234, 128, 252, 0.22);
             border-color: #ea80fc;
-            box-shadow: 0 0 12px rgba(234, 128, 252, 0.4);
+            box-shadow: 0 0 15px rgba(234, 128, 252, 0.45);
         }
     </style>
 </head>
@@ -152,10 +151,10 @@
         const autoBtn = document.getElementById('autoBtn');
 
         let flowers = [];
+        let particles = [];
         let autoBloomInterval = null;
         let isAutoBlooming = false;
 
-        // Resize Canvas to fit Window
         function resizeCanvas() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
@@ -163,150 +162,271 @@
         window.addEventListener('resize', resizeCanvas);
         resizeCanvas();
 
-        // Aesthetic Flower Color Palettes
-        const flowerColors = [
-            { petal: '#ff69b4', center: '#fff176' }, // Pink
-            { petal: '#ea80fc', center: '#ffff8d' }, // Soft Purple
-            { petal: '#ffd54f', center: '#ffffff' }, // Yellow
-            { petal: '#ff8a80', center: '#ffe082' }, // Coral
-            { petal: '#80d8ff', center: '#ffffff' }, // Sky Blue
-            { petal: '#f48fb1', center: '#ffe082' }, // Rose Pink
-            { petal: '#ffffff', center: '#ffd54f' }  // Pure White
+        // Aesthetic Wildflower Color Schemes
+        const flowerPalettes = [
+            { base: '#d81b60', mid: '#ff4081', tip: '#ff80ab', center: '#ffee58', glow: '#ff80ab' }, // Romantic Pink
+            { base: '#7b1fa2', mid: '#ab47bc', tip: '#e1bee7', center: '#ffd54f', glow: '#ea80fc' }, // Mystic Purple
+            { base: '#f57c00', mid: '#ff9800', tip: '#ffe082', center: '#ffffff', glow: '#ffd54f' }, // Sunshine Peach
+            { base: '#c2185b', mid: '#e91e63', tip: '#f8bbd0', center: '#fff59d', glow: '#f48fb1' }, // Deep Rose
+            { base: '#0288d1', mid: '#03a9f4', tip: '#b3e5fc', center: '#ffff8d', glow: '#80d8ff' }, // Ocean Sky
+            { base: '#e65100', mid: '#ff5722', tip: '#ffab91', center: '#fff59d', glow: '#ff8a80' }  // Warm Coral
         ];
 
-        // Flower Class
-        class Flower {
-            constructor(targetX, targetY) {
-                this.startX = targetX + (Math.random() - 0.5) * 30;
-                this.startY = canvas.height + 10;
-                this.targetX = targetX;
-                this.targetY = targetY;
-
-                this.growth = 0; // Stem growth progress (0 to 1)
-                this.bloom = 0;  // Petal bloom progress (0 to 1)
-
-                this.color = flowerColors[Math.floor(Math.random() * flowerColors.length)];
-                this.petalCount = Math.floor(Math.random() * 3) + 5; // 5 to 7 petals
-                this.maxPetalRadius = Math.random() * 12 + 18;
-                this.stemCurve = (Math.random() - 0.5) * 60; // Curve factor for natural stem
-
-                // Leaves along the stem
-                this.leafOffset1 = Math.random() * 0.2 + 0.3; // position on stem
-                this.leafOffset2 = Math.random() * 0.2 + 0.6;
+        // Particle Class for Floating Pollen Sparkles
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 1.2;
+                this.vy = -Math.random() * 1.5 - 0.5;
+                this.size = Math.random() * 2 + 1;
+                this.alpha = 1;
+                this.color = color;
             }
 
             update() {
-                if (this.growth < 1) {
-                    this.growth += 0.02; // Stem growth speed
-                } else if (this.bloom < 1) {
-                    this.bloom += 0.03; // Blooming speed
-                }
+                this.x += this.vx;
+                this.y += this.vy;
+                this.alpha -= 0.012;
             }
 
             draw() {
-                // Calculate current stem tip position
-                const currentX = this.startX + (this.targetX - this.startX) * this.growth;
-                const currentY = this.startY + (this.targetY - this.startY) * this.growth;
-                const controlX = (this.startX + this.targetX) / 2 + this.stemCurve;
-                const controlY = (this.startY + this.targetY) / 2;
-
-                // 1. Draw Stem
-                ctx.beginPath();
-                ctx.moveTo(this.startX, this.startY);
-                ctx.quadraticCurveTo(
-                    controlX,
-                    controlY,
-                    currentX,
-                    currentY
-                );
-                ctx.strokeStyle = '#4caf50';
-                ctx.lineWidth = 3;
-                ctx.lineCap = 'round';
-                ctx.stroke();
-
-                // 2. Draw Leaves (when stem reaches them)
-                if (this.growth > this.leafOffset1) {
-                    this.drawLeaf(this.startX, this.startY, controlX, controlY, this.targetX, this.targetY, this.leafOffset1, -1);
-                }
-                if (this.growth > this.leafOffset2) {
-                    this.drawLeaf(this.startX, this.startY, controlX, controlY, this.targetX, this.targetY, this.leafOffset2, 1);
-                }
-
-                // 3. Draw Blooming Petals
-                if (this.growth >= 1) {
-                    ctx.save();
-                    ctx.translate(this.targetX, this.targetY);
-
-                    const currentPetalRadius = this.maxPetalRadius * this.bloom;
-
-                    // Petal Glow / Shadow Effect
-                    ctx.shadowColor = this.color.petal;
-                    ctx.shadowBlur = 10;
-
-                    for (let i = 0; i < this.petalCount; i++) {
-                        const angle = (i * 2 * Math.PI) / this.petalCount;
-                        ctx.save();
-                        ctx.rotate(angle);
-
-                        ctx.beginPath();
-                        ctx.moveTo(0, 0);
-                        ctx.quadraticCurveTo(
-                            currentPetalRadius * 0.6,
-                            currentPetalRadius * 0.8,
-                            0,
-                            currentPetalRadius * 1.5
-                        );
-                        ctx.quadraticCurveTo(
-                            -currentPetalRadius * 0.6,
-                            currentPetalRadius * 0.8,
-                            0,
-                            0
-                        );
-                        ctx.fillStyle = this.color.petal;
-                        ctx.fill();
-                        ctx.restore();
-                    }
-
-                    // Draw Flower Center Disc
-                    ctx.beginPath();
-                    ctx.arc(0, 0, currentPetalRadius * 0.35, 0, Math.PI * 2);
-                    ctx.fillStyle = this.color.center;
-                    ctx.shadowBlur = 5;
-                    ctx.shadowColor = '#ffffff';
-                    ctx.fill();
-
-                    ctx.restore();
-                }
-            }
-
-            drawLeaf(sx, sy, cx, cy, tx, ty, t, side) {
-                // Bezier point interpolation for leaf placement
-                const lx = (1 - t) * (1 - t) * sx + 2 * (1 - t) * t * cx + t * t * tx;
-                const ly = (1 - t) * (1 - t) * sy + 2 * (1 - t) * t * cy + t * t * ty;
-
                 ctx.save();
-                ctx.translate(lx, ly);
-                ctx.rotate((side * Math.PI) / 4);
-
+                ctx.globalAlpha = Math.max(0, this.alpha);
                 ctx.beginPath();
-                ctx.ellipse(0, 0, 10, 4, Math.PI / 4, 0, Math.PI * 2);
-                ctx.fillStyle = '#66bb6a';
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.shadowColor = '#ffffff';
+                ctx.shadowBlur = 6;
                 ctx.fill();
                 ctx.restore();
             }
         }
 
-        // Add Flower on Click/Tap
+        // Flower Class
+        class Flower {
+            constructor(targetX, targetY) {
+                this.startX = targetX + (Math.random() - 0.5) * 50;
+                this.startY = canvas.height + 20;
+                this.targetX = targetX;
+                this.targetY = targetY;
+
+                this.growth = 0; 
+                this.bloom = 0;  
+
+                this.palette = flowerPalettes[Math.floor(Math.random() * flowerPalettes.length)];
+                this.petalCount = Math.floor(Math.random() * 3) + 6; // 6 to 8 petals
+                this.maxPetalLength = Math.random() * 12 + 28;
+                this.maxPetalWidth = this.maxPetalLength * 0.55;
+                this.stemCurve = (Math.random() - 0.5) * 80;
+
+                // Leaf placements along stem
+                this.leaf1Ratio = Math.random() * 0.2 + 0.3;
+                this.leaf2Ratio = Math.random() * 0.2 + 0.6;
+                this.leaf1Size = Math.random() * 6 + 18;
+                this.leaf2Size = Math.random() * 6 + 16;
+
+                this.particlesSpawned = false;
+            }
+
+            update() {
+                if (this.growth < 1) {
+                    this.growth += 0.022; // Stem Growth Speed
+                } else if (this.bloom < 1) {
+                    this.bloom += 0.025; // Blooming Speed
+                    
+                    // Spawn Pollen Particles on bloom start
+                    if (!this.particlesSpawned && this.bloom > 0.3) {
+                        this.particlesSpawned = true;
+                        for (let i = 0; i < 8; i++) {
+                            particles.push(new Particle(this.targetX, this.targetY, this.palette.tip));
+                        }
+                    }
+                }
+            }
+
+            getStemPoint(t) {
+                const controlX = (this.startX + this.targetX) / 2 + this.stemCurve;
+                const controlY = (this.startY + this.targetY) / 2;
+
+                const x = (1 - t) * (1 - t) * this.startX + 2 * (1 - t) * t * controlX + t * t * this.targetX;
+                const y = (1 - t) * (1 - t) * this.startY + 2 * (1 - t) * t * controlY + t * t * this.targetY;
+
+                const dx = 2 * (1 - t) * (controlX - this.startX) + 2 * t * (this.targetX - controlX);
+                const dy = 2 * (1 - t) * (controlY - this.startY) + 2 * t * (this.targetY - controlY);
+                const angle = Math.atan2(dy, dx);
+
+                return { x, y, angle };
+            }
+
+            draw() {
+                const currentT = Math.min(this.growth, 1);
+                const currentTip = this.getStemPoint(currentT);
+                const controlX = (this.startX + this.targetX) / 2 + this.stemCurve;
+                const controlY = (this.startY + this.targetY) / 2;
+
+                // 1. Draw Organic Stem
+                ctx.save();
+                ctx.beginPath();
+                ctx.moveTo(this.startX, this.startY);
+                ctx.quadraticCurveTo(controlX, controlY, currentTip.x, currentTip.y);
+
+                let stemGrad = ctx.createLinearGradient(this.startX, this.startY, currentTip.x, currentTip.y);
+                stemGrad.addColorStop(0, '#1b4317');
+                stemGrad.addColorStop(1, '#4caf50');
+
+                ctx.strokeStyle = stemGrad;
+                ctx.lineWidth = 3.5 - (1.5 * currentT); 
+                ctx.lineCap = 'round';
+                ctx.stroke();
+                ctx.restore();
+
+                // 2. Draw Leaves
+                if (this.growth > this.leaf1Ratio) {
+                    const leaf1 = this.getStemPoint(this.leaf1Ratio);
+                    this.drawLeaf(leaf1.x, leaf1.y, leaf1.angle - Math.PI / 3.2, this.leaf1Size);
+                }
+                if (this.growth > this.leaf2Ratio) {
+                    const leaf2 = this.getStemPoint(this.leaf2Ratio);
+                    this.drawLeaf(leaf2.x, leaf2.y, leaf2.angle + Math.PI / 3.2, this.leaf2Size);
+                }
+
+                // 3. Draw Blooming Flower
+                if (this.growth >= 1 && this.bloom > 0) {
+                    ctx.save();
+                    ctx.translate(this.targetX, this.targetY);
+
+                    // Eased scale for organic bloom opening
+                    const easeBloom = Math.sin((this.bloom * Math.PI) / 2);
+                    const pLength = this.maxPetalLength * easeBloom;
+                    const pWidth = this.maxPetalWidth * easeBloom;
+
+                    // Outer Petal Ring
+                    for (let i = 0; i < this.petalCount; i++) {
+                        const angle = (i * 2 * Math.PI) / this.petalCount;
+                        this.drawPetal(angle, pLength, pWidth, 1.0);
+                    }
+
+                    // Inner Petal Ring (Layered Depth)
+                    for (let i = 0; i < this.petalCount; i++) {
+                        const angle = (i * 2 * Math.PI) / this.petalCount + (Math.PI / this.petalCount);
+                        this.drawPetal(angle, pLength * 0.72, pWidth * 0.65, 0.95);
+                    }
+
+                    // Glowing Center Disc & Stamens
+                    this.drawCenter(pLength * 0.28);
+
+                    ctx.restore();
+                }
+            }
+
+            drawLeaf(x, y, angle, size) {
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.rotate(angle);
+
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.bezierCurveTo(size * 0.5, -size * 0.6, size * 1.1, -size * 0.3, size * 1.3, 0);
+                ctx.bezierCurveTo(size * 1.1, size * 0.3, size * 0.5, size * 0.6, 0, 0);
+
+                let leafGrad = ctx.createLinearGradient(0, 0, size * 1.3, 0);
+                leafGrad.addColorStop(0, '#2e7d32');
+                leafGrad.addColorStop(0.6, '#66bb6a');
+                leafGrad.addColorStop(1, '#aed581');
+
+                ctx.fillStyle = leafGrad;
+                ctx.fill();
+
+                // Leaf Center Vein
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.quadraticCurveTo(size * 0.6, -size * 0.05, size * 1.1, 0);
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+
+                ctx.restore();
+            }
+
+            drawPetal(angle, length, width, opacity) {
+                ctx.save();
+                ctx.rotate(angle);
+                ctx.globalAlpha = opacity;
+
+                let grad = ctx.createLinearGradient(0, 0, 0, length);
+                grad.addColorStop(0, this.palette.base);
+                grad.addColorStop(0.5, this.palette.mid);
+                grad.addColorStop(1, this.palette.tip);
+
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.bezierCurveTo(-width, length * 0.35, -width * 0.9, length * 0.85, 0, length);
+                ctx.bezierCurveTo(width * 0.9, length * 0.85, width, length * 0.35, 0, 0);
+
+                ctx.fillStyle = grad;
+                ctx.shadowColor = this.palette.glow;
+                ctx.shadowBlur = 12;
+                ctx.fill();
+
+                ctx.restore();
+            }
+
+            drawCenter(radius) {
+                if (radius <= 0) return;
+
+                ctx.save();
+                
+                // Center Disc
+                ctx.beginPath();
+                ctx.arc(0, 0, radius, 0, Math.PI * 2);
+                let centerGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, radius);
+                centerGrad.addColorStop(0, '#ffffff');
+                centerGrad.addColorStop(0.5, this.palette.center);
+                centerGrad.addColorStop(1, '#e65100');
+                ctx.fillStyle = centerGrad;
+                ctx.shadowColor = this.palette.center;
+                ctx.shadowBlur = 10;
+                ctx.fill();
+
+                // Stamen Dots
+                const stamens = 8;
+                for (let i = 0; i < stamens; i++) {
+                    const stamenAngle = (i * 2 * Math.PI) / stamens;
+                    const dist = radius * 1.35;
+                    const sx = Math.cos(stamenAngle) * dist;
+                    const sy = Math.sin(stamenAngle) * dist;
+
+                    ctx.beginPath();
+                    ctx.arc(sx, sy, 1.5, 0, Math.PI * 2);
+                    ctx.fillStyle = '#fff8e1';
+                    ctx.shadowBlur = 4;
+                    ctx.shadowColor = '#ffffff';
+                    ctx.fill();
+                }
+
+                ctx.restore();
+            }
+        }
+
+        // Add Flower Spawn
         function addFlower(x, y) {
-            instruction.classList.add('hidden');
+            if (instruction) {
+                instruction.classList.add('hidden');
+            }
             flowers.push(new Flower(x, y));
         }
 
-        canvas.addEventListener('click', (e) => {
+        // Tap/Click Listeners
+        canvas.addEventListener('pointerdown', (e) => {
+            // Ignore if clicking control buttons
+            if (e.clientY > window.innerHeight - 90 && e.clientX > window.innerWidth / 2 - 120 && e.clientX < window.innerWidth / 2 + 120) {
+                return;
+            }
             addFlower(e.clientX, e.clientY);
         });
 
-        // Auto Bloom Toggle
+        // Auto Bloom Button
         autoBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             isAutoBlooming = !isAutoBlooming;
@@ -315,29 +435,42 @@
                 autoBtn.classList.add('active');
                 autoBloomInterval = setInterval(() => {
                     const randomX = Math.random() * (canvas.width - 100) + 50;
-                    const randomY = Math.random() * (canvas.height * 0.5) + canvas.height * 0.35;
+                    const randomY = Math.random() * (canvas.height * 0.55) + canvas.height * 0.3;
                     addFlower(randomX, randomY);
-                }, 400);
+                }, 350);
             } else {
                 autoBtn.classList.remove('active');
                 clearInterval(autoBloomInterval);
             }
         });
 
-        // Clear Garden
+        // Clear Garden Button
         clearBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             flowers = [];
-            instruction.classList.remove('hidden');
+            particles = [];
+            if (instruction) {
+                instruction.classList.remove('hidden');
+            }
         });
 
         // Animation Loop
         function animate() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+            // Draw & Update Flowers
             flowers.forEach((flower) => {
                 flower.update();
                 flower.draw();
+            });
+
+            // Draw & Update Floating Particles
+            particles.forEach((p, index) => {
+                p.update();
+                p.draw();
+                if (p.alpha <= 0) {
+                    particles.splice(index, 1);
+                }
             });
 
             requestAnimationFrame(animate);
