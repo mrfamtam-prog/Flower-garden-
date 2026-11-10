@@ -1,3 +1,4 @@
+
 (() => {
   'use strict';
 
@@ -37,7 +38,6 @@
   let autoBloomTimer = null;
   let autoBlooming = false;
 
-  // Cosmos-inspired colours based on your reference image.
   const palettes = [
     {
       base: '#a92d78',
@@ -69,6 +69,10 @@
     }
   ];
 
+  // ----------------------------------
+  // CANVAS RESIZE
+  // ----------------------------------
+
   function resize() {
     dpr = Math.min(window.devicePixelRatio || 1, 2);
 
@@ -93,7 +97,10 @@
     passive: true
   });
 
-  // Pollen particles
+  // ----------------------------------
+  // POLLEN PARTICLES
+  // ----------------------------------
+
   class PollenParticle {
     constructor(x, y, color) {
       this.x = x;
@@ -122,20 +129,17 @@
       ctx.shadowBlur = 7;
 
       ctx.beginPath();
-      ctx.arc(
-        this.x,
-        this.y,
-        this.size,
-        0,
-        Math.PI * 2
-      );
-
+      ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
       ctx.fill();
+
       ctx.restore();
     }
   }
 
-  // Main botanical flower
+  // ----------------------------------
+  // FLOWER CLASS
+  // ----------------------------------
+
   class Flower {
     constructor(x, y, paletteIndex, scale = 1) {
       this.x = x;
@@ -171,7 +175,7 @@
 
       this.pollenReleased = false;
 
-      // Multiple narrow leaves along the stem.
+      // Alternating leaves on both sides of the stem.
       this.leaves = [];
 
       const leafCount = 7 + Math.floor(Math.random() * 3);
@@ -188,7 +192,7 @@
           length:
             (17 + Math.random() * 12) * scale,
 
-          angle: (Math.random() - 0.5) * 0.35
+          angle: (Math.random() - 0.5) * 0.16
         });
       }
     }
@@ -239,10 +243,7 @@
           this.bloom + 0.025 * frameDelta
         );
 
-        if (
-          !this.pollenReleased &&
-          this.bloom > 0.55
-        ) {
+        if (!this.pollenReleased && this.bloom > 0.55) {
           this.pollenReleased = true;
 
           for (let i = 0; i < 7; i++) {
@@ -353,7 +354,10 @@
       }
     }
 
-    // Natural green leaves with veins.
+    // ----------------------------------
+    // NATURAL LEAVES
+    // ----------------------------------
+
     drawLeaf(x, y, leaf) {
       const size = leaf.length;
 
@@ -361,9 +365,12 @@
 
       ctx.translate(x, y);
 
-      ctx.rotate(
-        leaf.side * (0.52 + leaf.angle)
-      );
+      // Correctly alternate leaf direction.
+      const leafRotation = leaf.side === 1
+        ? -0.38 + leaf.angle
+        : Math.PI + 0.38 - leaf.angle;
+
+      ctx.rotate(leafRotation);
 
       const gradient = ctx.createLinearGradient(
         0, 0, size * 1.55, 0
@@ -437,7 +444,10 @@
       ctx.restore();
     }
 
-    // Rounded flower petals with fine details.
+    // ----------------------------------
+    // FLOWER PETALS
+    // ----------------------------------
+
     drawPetal(angle, length, petalWidth, alpha = 1) {
       ctx.save();
 
@@ -561,7 +571,6 @@
       this.drawCenter(radius * 0.27);
     }
 
-    // Textured golden flower centre.
     drawCenter(radius) {
       if (radius <= 0) return;
 
@@ -616,7 +625,10 @@
     }
   }
 
-  // Fireflies.
+  // ----------------------------------
+  // FIREFLIES
+  // ----------------------------------
+
   class Firefly {
     constructor() {
       this.reset();
@@ -675,7 +687,10 @@
     }
   }
 
-  // Butterflies.
+  // ----------------------------------
+  // BUTTERFLIES
+  // ----------------------------------
+
   class Butterfly {
     constructor() {
       this.x = Math.random() * width;
@@ -753,6 +768,10 @@
     }
   }
 
+  // ----------------------------------
+  // NATURAL GRASS GENERATION
+  // ----------------------------------
+
   function makeNature() {
     fireflies = Array.from(
       {
@@ -771,56 +790,109 @@
 
     grass = [];
 
-    const blades = Math.max(
-      26,
-      Math.floor(width / 18)
+    const grassColors = [
+      '#173f2b',
+      '#245b35',
+      '#347644',
+      '#477f48',
+      '#668e50'
+    ];
+
+    // Grass is arranged in natural clusters near both edges.
+    const clusterCount = Math.max(
+      5,
+      Math.floor(width / 150)
     );
 
-    for (let i = 0; i < blades; i++) {
-      const onLeft = i % 2 === 0;
+    for (let c = 0; c < clusterCount; c++) {
+      const onLeft = c % 2 === 0;
 
-      grass.push({
-        x: onLeft
-          ? Math.random() * width * 0.18
-          : width * (0.82 + Math.random() * 0.18),
+      const centerX = onLeft
+        ? Math.random() * width * 0.17
+        : width * (0.83 + Math.random() * 0.17);
 
-        h: 35 + Math.random() * Math.min(105, height * 0.17),
+      const bladeCount = 5 + Math.floor(Math.random() * 6);
 
-        bend: (Math.random() - 0.5) * 38,
+      for (let i = 0; i < bladeCount; i++) {
+        grass.push({
+          x: centerX + (Math.random() - 0.5) * 45,
 
-        phase: Math.random() * Math.PI * 2,
+          h: 20 + Math.random() * Math.min(75, height * 0.13),
 
-        color: ['#164d35', '#24734a', '#39844d'][i % 3]
-      });
+          bend: (Math.random() - 0.5) * 35,
+
+          phase: Math.random() * Math.PI * 2,
+
+          thickness: 1.2 + Math.random() * 2.4,
+
+          color: grassColors[
+            Math.floor(Math.random() * grassColors.length)
+          ],
+
+          alpha: 0.55 + Math.random() * 0.35
+        });
+      }
     }
   }
+
+  // ----------------------------------
+  // DRAW NATURAL ENVIRONMENT
+  // ----------------------------------
 
   function drawNature(time) {
     nctx.clearRect(0, 0, width, height);
 
-    // Grass at the bottom edges.
+    // Natural curved grass blades.
     grass.forEach(blade => {
       const sway =
-        Math.sin(time * 0.0006 + blade.phase) * 3;
+        Math.sin(time * 0.0007 + blade.phase) * 5;
+
+      const baseX = blade.x;
+      const baseY = height + 3;
+
+      const tipX =
+        baseX + blade.bend * 0.45 + sway;
+
+      const tipY =
+        baseY - blade.h;
 
       nctx.save();
 
       nctx.beginPath();
 
-      nctx.moveTo(blade.x, height + 3);
+      nctx.moveTo(baseX, baseY);
 
       nctx.quadraticCurveTo(
-        blade.x + blade.bend + sway,
-        height - blade.h * 0.55,
-        blade.x + blade.bend * 0.55 + sway,
-        height - blade.h
+        baseX + blade.bend + sway,
+        baseY - blade.h * 0.45,
+        tipX,
+        tipY
       );
 
-      nctx.strokeStyle = blade.color;
-      nctx.lineWidth = 1.25;
-      nctx.lineCap = 'round';
+      nctx.quadraticCurveTo(
+        baseX + blade.thickness + blade.bend * 0.4,
+        baseY - blade.h * 0.45,
+        baseX + blade.thickness,
+        baseY
+      );
 
-      nctx.stroke();
+      nctx.closePath();
+
+      const gradient = nctx.createLinearGradient(
+        baseX,
+        baseY,
+        tipX,
+        tipY
+      );
+
+      gradient.addColorStop(0, '#153c29');
+      gradient.addColorStop(0.55, blade.color);
+      gradient.addColorStop(1, '#83a85b');
+
+      nctx.fillStyle = gradient;
+      nctx.globalAlpha = blade.alpha;
+      nctx.fill();
+
       nctx.restore();
     });
 
@@ -864,6 +936,10 @@
     });
   }
 
+  // ----------------------------------
+  // GARDEN INSTRUCTIONS
+  // ----------------------------------
+
   function updateInstruction(message) {
     if (instruction) {
       instruction.textContent = message;
@@ -888,7 +964,11 @@
     );
   }
 
-  // Initial four-flower bouquet.
+  // ----------------------------------
+  // STARTER BOUQUET
+  // Kept available but NOT called on entry.
+  // ----------------------------------
+
   function plantStarterBouquet() {
     flowers = [];
 
@@ -901,65 +981,20 @@
 
     const positions = mobile
       ? [
-          {
-            x: width * 0.18,
-            y: top + 65,
-            p: 1,
-            s: 0.78
-          },
-          {
-            x: width * 0.43,
-            y: top - 28,
-            p: 0,
-            s: 0.90
-          },
-          {
-            x: width * 0.72,
-            y: top + 8,
-            p: 2,
-            s: 0.82
-          },
-          {
-            x: width * 0.82,
-            y: top + 112,
-            p: 3,
-            s: 0.76
-          }
+          { x: width * 0.18, y: top + 65, p: 1, s: 0.78 },
+          { x: width * 0.43, y: top - 28, p: 0, s: 0.90 },
+          { x: width * 0.72, y: top + 8, p: 2, s: 0.82 },
+          { x: width * 0.82, y: top + 112, p: 3, s: 0.76 }
         ]
       : [
-          {
-            x: width * 0.20,
-            y: top + 90,
-            p: 1,
-            s: 0.90
-          },
-          {
-            x: width * 0.41,
-            y: top - 25,
-            p: 0,
-            s: 1.02
-          },
-          {
-            x: width * 0.69,
-            y: top + 10,
-            p: 2,
-            s: 0.98
-          },
-          {
-            x: width * 0.81,
-            y: top + 125,
-            p: 3,
-            s: 0.92
-          }
+          { x: width * 0.20, y: top + 90, p: 1, s: 0.90 },
+          { x: width * 0.41, y: top - 25, p: 0, s: 1.02 },
+          { x: width * 0.69, y: top + 10, p: 2, s: 0.98 },
+          { x: width * 0.81, y: top + 125, p: 3, s: 0.92 }
         ];
 
     positions.forEach(item => {
-      addFlower(
-        item.x,
-        item.y,
-        item.p,
-        item.s
-      );
+      addFlower(item.x, item.y, item.p, item.s);
     });
 
     if (instruction) {
@@ -973,6 +1008,10 @@
       tip.classList.add('tip-faded');
     }
   }
+
+  // ----------------------------------
+  // STOP AUTO BLOOM
+  // ----------------------------------
 
   function stopAutoBloom() {
     autoBlooming = false;
@@ -1000,7 +1039,10 @@
     }
   }
 
-  // Click or tap to grow a new flower.
+  // ----------------------------------
+  // CLICK OR TAP TO PLANT FLOWERS
+  // ----------------------------------
+
   gardenCanvas.addEventListener('pointerdown', event => {
     if (!entered) return;
 
@@ -1019,7 +1061,10 @@
     addFlower(event.clientX, y);
   });
 
-  // Enter garden.
+  // ----------------------------------
+  // ENTER GARDEN
+  // ----------------------------------
+
   if (enterBtn) {
     enterBtn.addEventListener('click', () => {
       entered = true;
@@ -1032,7 +1077,20 @@
         gardenUI.classList.add('is-visible');
       }
 
-      plantStarterBouquet();
+      // No automatic flowers on entry.
+      flowers = [];
+      pollen = [];
+
+      if (instruction) {
+        instruction.textContent =
+          'Tap anywhere in the garden to plant your first flower.';
+      }
+
+      const tip = document.getElementById('gardenTip');
+
+      if (tip) {
+        tip.classList.remove('tip-faded');
+      }
 
       window.setTimeout(() => {
         if (welcomeScreen) {
@@ -1045,7 +1103,10 @@
     });
   }
 
-  // Auto Bloom button.
+  // ----------------------------------
+  // AUTO BLOOM BUTTON
+  // ----------------------------------
+
   if (autoBtn) {
     autoBtn.addEventListener('click', () => {
       if (autoBlooming) {
@@ -1088,7 +1149,10 @@
     });
   }
 
-  // Clear Garden button.
+  // ----------------------------------
+  // CLEAR GARDEN BUTTON
+  // ----------------------------------
+
   if (clearBtn) {
     clearBtn.addEventListener('click', () => {
       flowers = [];
@@ -1109,7 +1173,10 @@
     });
   }
 
-  // Sound button.
+  // ----------------------------------
+  // SOUND BUTTON
+  // ----------------------------------
+
   if (soundBtn) {
     soundBtn.addEventListener('click', () => {
       soundBtn.title =
@@ -1120,7 +1187,10 @@
     });
   }
 
-  // Main animation loop.
+  // ----------------------------------
+  // MAIN ANIMATION LOOP
+  // ----------------------------------
+
   function animate(time = 0) {
     frameDelta = Math.min(
       2.2,
@@ -1158,6 +1228,7 @@
     window.requestAnimationFrame(animate);
   }
 
+  // INITIALIZE
   resize();
   window.requestAnimationFrame(animate);
 
