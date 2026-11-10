@@ -21,12 +21,13 @@
   let width = 0, height = 0, dpr = 1, lastTime = 0;
 
   const palettes = [
-    { base: '#c92f70', mid: '#f16b9e', tip: '#ffd0e2', center: '#fff0a8', glow: '#ff8dbb' },
-    { base: '#74429b', mid: '#b77ad0', tip: '#f2d8ff', center: '#ffe7a1', glow: '#d8a0ff' },
-    { base: '#d87542', mid: '#f5a16e', tip: '#ffe0ad', center: '#fff3c0', glow: '#ffc18a' },
-    { base: '#b84c78', mid: '#e98eaf', tip: '#ffe0eb', center: '#fff0a8', glow: '#f5a9ca' },
-    { base: '#557eae', mid: '#85b8dc', tip: '#e0f5ff', center: '#fff0a8', glow: '#a8dcff' },
-    { base: '#a64d67', mid: '#dc8293', tip: '#ffe0d9', center: '#fff0a8', glow: '#ffb2bd' }
+    { base: '#a91e59', mid: '#e94f89', tip: '#ffd9e8', center: '#ffdc78', glow: '#ff8fbd', shade: '#68163d' },
+    { base: '#70409b', mid: '#b47bd4', tip: '#f3e0ff', center: '#ffe18a', glow: '#d8a0ff', shade: '#452365' },
+    { base: '#c95835', mid: '#f39a68', tip: '#ffe8c4', center: '#ffe58a', glow: '#ffb17d', shade: '#81341f' },
+    { base: '#b93670', mid: '#e982ad', tip: '#ffe5f0', center: '#ffe58a', glow: '#f5a9cb', shade: '#762044' },
+    { base: '#477baa', mid: '#83b9df', tip: '#e5f6ff', center: '#ffe58a', glow: '#a9dcff', shade: '#254b70' },
+    { base: '#bd625b', mid: '#ed9b91', tip: '#ffe9df', center: '#ffe58a', glow: '#ffb6ae', shade: '#783b3b' },
+    { base: '#c18b27', mid: '#f2c65e', tip: '#fff4cc', center: '#a85b2d', glow: '#ffe59a', shade: '#805719' }
   ];
 
   function resize() {
@@ -82,22 +83,27 @@
     constructor(x, y) {
       this.x = x;
       this.y = y;
-      this.startX = x + (Math.random() - .5) * Math.min(42, width * .06);
+      this.startX = x + (Math.random() - .5) * Math.min(34, width * .05);
       this.startY = height + 16;
       this.growth = 0;
       this.bloom = 0;
       this.sway = Math.random() * Math.PI * 2;
       this.palette = palettes[Math.floor(Math.random() * palettes.length)];
-      this.petalCount = 6 + Math.floor(Math.random() * 3);
-      this.length = 22 + Math.random() * 15;
-      this.petalWidth = this.length * .56;
-      this.curve = (Math.random() - .5) * Math.min(78, width * .1);
 
+      // Different flower silhouettes make the garden feel less repetitive.
+      this.form = ['dahlia', 'wildflower', 'peony'][Math.floor(Math.random() * 3)];
+      this.petalCount = this.form === 'dahlia' ? 11 : this.form === 'peony' ? 9 : 7;
+      this.length = this.form === 'peony'
+        ? 25 + Math.random() * 15
+        : 23 + Math.random() * 13;
+      this.petalWidth = this.length * (this.form === 'wildflower' ? .43 : .57);
+      this.curve = (Math.random() - .5) * Math.min(72, width * .09);
+      this.rotation = Math.random() * Math.PI * 2;
+      this.seed = Math.random() * 100;
       this.leaves = [
-        { at: .36 + Math.random() * .1, size: 14 + Math.random() * 7, side: -1 },
-        { at: .63 + Math.random() * .1, size: 13 + Math.random() * 7, side: 1 }
+        { at: .31 + Math.random() * .1, size: 16 + Math.random() * 8, side: -1 },
+        { at: .58 + Math.random() * .12, size: 15 + Math.random() * 9, side: 1 }
       ];
-
       this.pollenDone = false;
     }
 
@@ -105,35 +111,26 @@
       const cx = (this.startX + this.x) / 2 + this.curve;
       const cy = (this.startY + this.y) / 2;
       const u = 1 - t;
-
       const px = u*u*this.startX + 2*u*t*cx + t*t*this.x;
       const py = u*u*this.startY + 2*u*t*cy + t*t*this.y;
       const dx = 2*u*(cx-this.startX) + 2*t*(this.x-cx);
       const dy = 2*u*(cy-this.startY) + 2*t*(this.y-cy);
-
-      return {
-        x: px,
-        y: py,
-        angle: Math.atan2(dy, dx)
-      };
+      return { x: px, y: py, angle: Math.atan2(dy, dx) };
     }
 
     update(dt, time) {
       if (this.growth < 1) {
-        this.growth = Math.min(1, this.growth + .018 * dt);
+        this.growth = Math.min(1, this.growth + .017 * dt);
       } else if (this.bloom < 1) {
-        this.bloom = Math.min(1, this.bloom + .023 * dt);
-
-        if (!this.pollenDone && this.bloom > .35) {
+        this.bloom = Math.min(1, this.bloom + .019 * dt);
+        if (!this.pollenDone && this.bloom > .42) {
           this.pollenDone = true;
-
-          for (let i = 0; i < 9; i++) {
+          for (let i = 0; i < 13; i++) {
             particles.push(new Pollen(this.x, this.y, this.palette.tip));
           }
         }
       }
-
-      this.sway = time * .00055 + this.x * .008;
+      this.sway = time * .00048 + this.seed;
     }
 
     draw(time) {
@@ -142,169 +139,216 @@
       const controlX = (this.startX + this.x) / 2 + this.curve;
       const controlY = (this.startY + this.y) / 2;
 
+      // Stem with a soft highlight.
       ctx.save();
       ctx.beginPath();
       ctx.moveTo(this.startX, this.startY);
       ctx.quadraticCurveTo(controlX, controlY, tip.x, tip.y);
-
-      const stem = ctx.createLinearGradient(
-        this.startX, this.startY, tip.x, tip.y
-      );
-
-      stem.addColorStop(0, '#173d31');
-      stem.addColorStop(1, '#73b879');
-
+      const stem = ctx.createLinearGradient(this.startX, this.startY, tip.x, tip.y);
+      stem.addColorStop(0, '#173b2b');
+      stem.addColorStop(.5, '#397e4b');
+      stem.addColorStop(1, '#91c77b');
       ctx.strokeStyle = stem;
-      ctx.lineWidth = 3.3 - 1.3*t;
+      ctx.lineWidth = 3.5 - 1.2 * t;
       ctx.lineCap = 'round';
+      ctx.shadowColor = 'rgba(75,145,83,.25)';
+      ctx.shadowBlur = 4;
       ctx.stroke();
       ctx.restore();
 
       this.leaves.forEach(leaf => {
         if (t > leaf.at) {
           const p = this.point(leaf.at);
-          this.drawLeaf(
-            p.x,
-            p.y,
-            p.angle + leaf.side * .92,
-            leaf.size
-          );
+          this.drawLeaf(p.x, p.y, p.angle + leaf.side * .95, leaf.size);
         }
       });
 
       if (t >= 1 && this.bloom > 0) {
         const eased = Math.sin(this.bloom * Math.PI / 2);
-
         ctx.save();
         ctx.translate(this.x, this.y);
-        ctx.rotate(Math.sin(this.sway) * .045);
+        ctx.rotate(Math.sin(this.sway) * .045 + this.rotation * .04);
 
         const len = this.length * eased;
         const wid = this.petalWidth * eased;
 
+        this.drawCalyx(len);
+
+        // A soft halo behind each bloom gives it depth without looking neon.
+        const halo = ctx.createRadialGradient(0, 0, 1, 0, 0, len * 2.2);
+        halo.addColorStop(0, this.hexToRgba(this.palette.glow, .22));
+        halo.addColorStop(1, this.hexToRgba(this.palette.glow, 0));
+        ctx.fillStyle = halo;
+        ctx.beginPath();
+        ctx.arc(0, 0, len * 2.2, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Back petals: slightly darker and broader.
         for (let i = 0; i < this.petalCount; i++) {
-          this.drawPetal(i * Math.PI * 2 / this.petalCount, len, wid);
+          const a = i * Math.PI * 2 / this.petalCount;
+          this.drawPetal(a, len, wid, .92, true);
         }
 
+        // Front petals overlap the back layer for a fuller flower.
         for (let i = 0; i < this.petalCount; i++) {
-          this.drawPetal(
-            i * Math.PI * 2 / this.petalCount + Math.PI / this.petalCount,
-            len * .72,
-            wid * .66,
-            .9
-          );
+          const a = i * Math.PI * 2 / this.petalCount + Math.PI / this.petalCount;
+          this.drawPetal(a, len * .79, wid * .76, 1, false);
         }
 
-        this.drawCenter(len * .27);
+        if (this.form === 'peony') {
+          for (let i = 0; i < 6; i++) {
+            this.drawPetal(i * Math.PI * 2 / 6 + .25, len * .48, wid * .48, .96, false);
+          }
+        }
+
+        this.drawCenter(len * (this.form === 'wildflower' ? .22 : .25));
         ctx.restore();
       }
+    }
+
+    hexToRgba(hex, alpha) {
+      const value = hex.replace('#', '');
+      const n = parseInt(value, 16);
+      const r = (n >> 16) & 255;
+      const g = (n >> 8) & 255;
+      const b = n & 255;
+      return `rgba(${r},${g},${b},${alpha})`;
+    }
+
+    drawCalyx(len) {
+      ctx.save();
+      for (let i = 0; i < 5; i++) {
+        ctx.save();
+        ctx.rotate(i * Math.PI * 2 / 5);
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.quadraticCurveTo(-5, -len * .17, 0, -len * .4);
+        ctx.quadraticCurveTo(5, -len * .17, 0, 0);
+        const g = ctx.createLinearGradient(0, 0, 0, -len * .4);
+        g.addColorStop(0, '#24563a');
+        g.addColorStop(1, '#91bd72');
+        ctx.fillStyle = g;
+        ctx.fill();
+        ctx.restore();
+      }
+      ctx.restore();
     }
 
     drawLeaf(x, y, angle, size) {
       ctx.save();
       ctx.translate(x, y);
       ctx.rotate(angle);
+      ctx.shadowColor = 'rgba(15,65,34,.35)';
+      ctx.shadowBlur = 7;
 
       ctx.beginPath();
-      ctx.moveTo(0,0);
-      ctx.bezierCurveTo(
-        size*.45, -size*.55,
-        size*1.05, -size*.28,
-        size*1.25, 0
-      );
-      ctx.bezierCurveTo(
-        size*1.05, size*.28,
-        size*.45, size*.55,
-        0, 0
-      );
+      ctx.moveTo(0, 0);
+      ctx.bezierCurveTo(size*.4, -size*.65, size*1.05, -size*.4, size*1.35, 0);
+      ctx.bezierCurveTo(size*1.05, size*.4, size*.4, size*.65, 0, 0);
 
-      const g = ctx.createLinearGradient(0,0,size*1.25,0);
-      g.addColorStop(0,'#286747');
-      g.addColorStop(.65,'#65a86d');
-      g.addColorStop(1,'#b3d69b');
-
+      const g = ctx.createLinearGradient(0, -size*.4, size*1.35, size*.3);
+      g.addColorStop(0, '#194a30');
+      g.addColorStop(.48, '#4d9859');
+      g.addColorStop(1, '#add88c');
       ctx.fillStyle = g;
       ctx.fill();
 
+      ctx.shadowBlur = 0;
       ctx.beginPath();
-      ctx.moveTo(0,0);
-      ctx.quadraticCurveTo(size*.6,-size*.04,size*1.1,0);
-      ctx.strokeStyle = 'rgba(235,255,224,.45)';
-      ctx.lineWidth = .8;
+      ctx.moveTo(0, 0);
+      ctx.quadraticCurveTo(size*.65, -size*.04, size*1.25, 0);
+      ctx.strokeStyle = 'rgba(235,255,224,.62)';
+      ctx.lineWidth = 1;
       ctx.stroke();
 
+      for (let i = 1; i <= 3; i++) {
+        const px = size * i * .27;
+        ctx.beginPath();
+        ctx.moveTo(px, 0);
+        ctx.lineTo(px + size*.16, -size*.17);
+        ctx.moveTo(px, 0);
+        ctx.lineTo(px + size*.16, size*.17);
+        ctx.strokeStyle = 'rgba(230,255,220,.28)';
+        ctx.lineWidth = .7;
+        ctx.stroke();
+      }
       ctx.restore();
     }
 
-    drawPetal(angle, length, w, alpha = 1) {
+    drawPetal(angle, length, w, alpha = 1, backLayer = false) {
       ctx.save();
       ctx.rotate(angle);
       ctx.globalAlpha = alpha;
-
-      const g = ctx.createLinearGradient(0,0,0,length);
-      g.addColorStop(0,this.palette.base);
-      g.addColorStop(.55,this.palette.mid);
-      g.addColorStop(1,this.palette.tip);
+      const g = ctx.createLinearGradient(0, 0, 0, length);
+      g.addColorStop(0, backLayer ? this.palette.shade : this.palette.base);
+      g.addColorStop(.28, this.palette.base);
+      g.addColorStop(.68, this.palette.mid);
+      g.addColorStop(1, this.palette.tip);
 
       ctx.beginPath();
-      ctx.moveTo(0,0);
-      ctx.bezierCurveTo(
-        -w*.9, length*.32,
-        -w, length*.82,
-        0, length
-      );
-      ctx.bezierCurveTo(
-        w, length*.82,
-        w*.9, length*.32,
-        0, 0
-      );
-
+      ctx.moveTo(0, 0);
+      ctx.bezierCurveTo(-w*.78, length*.18, -w*1.05, length*.68, 0, length);
+      ctx.bezierCurveTo(w*1.05, length*.68, w*.78, length*.18, 0, 0);
       ctx.fillStyle = g;
       ctx.shadowColor = this.palette.glow;
-      ctx.shadowBlur = 15;
+      ctx.shadowBlur = backLayer ? 8 : 12;
+      ctx.fill();
+
+      // A fine vein and a translucent highlight make the petals feel softer.
+      ctx.shadowBlur = 0;
+      ctx.beginPath();
+      ctx.moveTo(0, length*.12);
+      ctx.quadraticCurveTo(w*.04, length*.5, 0, length*.9);
+      ctx.strokeStyle = 'rgba(255,255,255,.34)';
+      ctx.lineWidth = .8;
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.ellipse(-w*.17, length*.46, w*.15, length*.22, -.15, 0, Math.PI*2);
+      ctx.fillStyle = 'rgba(255,255,255,.10)';
       ctx.fill();
       ctx.restore();
     }
 
     drawCenter(r) {
       if (r <= 0) return;
-
       ctx.save();
+
+      const glow = ctx.createRadialGradient(0, 0, r*.2, 0, 0, r*2);
+      glow.addColorStop(0, 'rgba(255,220,120,.42)');
+      glow.addColorStop(1, 'rgba(255,220,120,0)');
+      ctx.fillStyle = glow;
       ctx.beginPath();
-      ctx.arc(0,0,r,0,Math.PI*2);
+      ctx.arc(0, 0, r*2, 0, Math.PI*2);
+      ctx.fill();
 
-      const g = ctx.createRadialGradient(
-        -r*.25, -r*.3, 0,
-        0, 0, r
-      );
-
-      g.addColorStop(0,'#fffef0');
-      g.addColorStop(.55,this.palette.center);
-      g.addColorStop(1,'#d98b4b');
-
+      const g = ctx.createRadialGradient(-r*.28, -r*.32, r*.06, 0, 0, r);
+      g.addColorStop(0, '#fffbe3');
+      g.addColorStop(.36, this.palette.center);
+      g.addColorStop(.76, '#e7a34a');
+      g.addColorStop(1, '#a65e31');
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, Math.PI*2);
       ctx.fillStyle = g;
       ctx.shadowColor = this.palette.center;
       ctx.shadowBlur = 12;
       ctx.fill();
 
-      for (let i = 0; i < 8; i++) {
-        const a = i * Math.PI / 4;
-        const d = r * 1.28;
-
+      // Fine pollen grains arranged in a natural spiral.
+      ctx.shadowBlur = 0;
+      for (let i = 0; i < 30; i++) {
+        const a = i * 2.399;
+        const d = Math.sqrt(i / 30) * r * .82;
         ctx.beginPath();
-        ctx.arc(
-          Math.cos(a)*d,
-          Math.sin(a)*d,
-          1.25,
-          0,
-          Math.PI*2
-        );
-
-        ctx.fillStyle = '#fff9e6';
-        ctx.shadowBlur = 5;
+        ctx.arc(Math.cos(a)*d, Math.sin(a)*d, .8 + (i%3)*.35, 0, Math.PI*2);
+        ctx.fillStyle = i%2 ? '#fff5c7' : '#a96635';
         ctx.fill();
       }
 
+      ctx.beginPath();
+      ctx.arc(-r*.18, -r*.2, r*.15, 0, Math.PI*2);
+      ctx.fillStyle = 'rgba(255,255,255,.62)';
+      ctx.fill();
       ctx.restore();
     }
   }
