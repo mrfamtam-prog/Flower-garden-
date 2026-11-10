@@ -1,3 +1,4 @@
+
 (() => {
   const gardenCanvas = document.getElementById('gardenCanvas');
   const natureCanvas = document.getElementById('natureCanvas');
@@ -12,66 +13,68 @@
   const soundBtn = document.getElementById('soundBtn');
 
   let flowers = [];
-  let particles = [];
+  let pollen = [];
   let fireflies = [];
   let butterflies = [];
   let autoBloomTimer = null;
   let autoBlooming = false;
   let entered = false;
-  let width = 0, height = 0, dpr = 1, lastTime = 0;
+  let width = 0;
+  let height = 0;
+  let dpr = 1;
+  let lastTime = 0;
+  let frameDelta = 1;
 
-  const palettes = [
-    { base: '#ff315f', mid: '#ff694f', tip: '#ffb15f', center: '#ffdc68', glow: '#ff5578', shade: '#a91654' },
-    { base: '#a52cff', mid: '#d34cff', tip: '#f39bff', center: '#ffd86b', glow: '#c04cff', shade: '#6415ad' },
-    { base: '#f02b9a', mid: '#ff5cbb', tip: '#ffb1dc', center: '#ffe17b', glow: '#ff65c2', shade: '#9b1b75' },
-    { base: '#ff4b36', mid: '#ff8050', tip: '#ffd078', center: '#ffe17b', glow: '#ff704d', shade: '#a92736' },
-    { base: '#7435dc', mid: '#a95bff', tip: '#e1a5ff', center: '#ffdf72', glow: '#a96aff', shade: '#45209a' },
-    { base: '#ff3f78', mid: '#ff7e9c', tip: '#ffd0d9', center: '#ffe27a', glow: '#ff789e', shade: '#a91d59' },
-    { base: '#ec5b24', mid: '#ff9840', tip: '#ffda78', center: '#ffe77e', glow: '#ff9b4d', shade: '#a83a24' }
+  // Soft botanical colors: less neon, more like real garden flowers.
+  const flowerStyles = [
+    { type: 'rose', name: 'rose', petals: ['#a92f63', '#d85b88', '#f2a5bd'], center: '#e9a84f', leaf: '#39754a' },
+    { type: 'sunflower', name: 'sunflower', petals: ['#d99020', '#f2bd45', '#ffdf83'], center: '#704326', leaf: '#397849' },
+    { type: 'daisy', name: 'daisy', petals: ['#fff4e8', '#ffffff', '#ffe8ed'], center: '#e9a83d', leaf: '#438052' },
+    { type: 'cosmos', name: 'cosmos', petals: ['#9856b7', '#c38bd4', '#ead0ef'], center: '#e8b84d', leaf: '#39754a' },
+    { type: 'rose', name: 'blush rose', petals: ['#c85b79', '#ed91a8', '#ffd0d9'], center: '#e9ae61', leaf: '#477b50' },
+    { type: 'daisy', name: 'pink daisy', petals: ['#df739b', '#f4a9c2', '#ffe0e9'], center: '#e7b044', leaf: '#438052' }
   ];
 
   function resize() {
     dpr = Math.min(window.devicePixelRatio || 1, 2);
     width = window.innerWidth;
     height = window.innerHeight;
-
     [gardenCanvas, natureCanvas].forEach(canvas => {
       canvas.width = Math.round(width * dpr);
       canvas.height = Math.round(height * dpr);
       canvas.style.width = width + 'px';
       canvas.style.height = height + 'px';
     });
-
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     nctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     seedNature();
   }
-
   window.addEventListener('resize', resize, { passive: true });
 
-  class Pollen {
+  function rgba(hex, alpha) {
+    const n = parseInt(hex.replace('#', ''), 16);
+    return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha})`;
+  }
+
+  class PollenParticle {
     constructor(x, y, color) {
       this.x = x;
       this.y = y;
-      this.vx = (Math.random() - .5) * 1.1;
-      this.vy = -Math.random() * 1.2 - .35;
-      this.size = Math.random() * 2 + .7;
-      this.alpha = 1;
+      this.vx = (Math.random() - .5) * .75;
+      this.vy = -.25 - Math.random() * .75;
+      this.size = .7 + Math.random() * 1.1;
+      this.alpha = .9;
       this.color = color;
     }
-
     update(dt) {
       this.x += this.vx * dt;
       this.y += this.vy * dt;
-      this.alpha -= .012 * dt;
+      this.alpha -= .009 * dt;
     }
-
     draw() {
       ctx.save();
       ctx.globalAlpha = Math.max(0, this.alpha);
       ctx.fillStyle = this.color;
-      ctx.shadowColor = this.color;
-      ctx.shadowBlur = 9;
       ctx.beginPath();
       ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
       ctx.fill();
@@ -83,255 +86,273 @@
     constructor(x, y) {
       this.x = x;
       this.y = y;
-      this.startX = x + (Math.random() - .5) * Math.min(58, width * .075);
-      this.startY = height + 18;
+      this.baseX = x + (Math.random() - .5) * Math.min(46, width * .07);
+      this.baseY = height + 12;
       this.growth = 0;
-      this.bloom = 0;
-      this.sway = Math.random() * Math.PI * 2;
-      this.palette = palettes[Math.floor(Math.random() * palettes.length)];
-
-      // Each click grows a tall, delicate wildflower instead of a tiny round rosette.
-      this.form = Math.random();
-      this.petalCount = 5 + Math.floor(Math.random() * 2);
-      this.length = 35 + Math.random() * 19;
-      this.petalWidth = 13 + Math.random() * 7;
-      this.headTilt = (Math.random() - .5) * .55;
-      this.curve = (Math.random() - .5) * Math.min(105, width * .13);
-      this.seed = Math.random() * 10;
+      this.open = 0;
+      this.phase = Math.random() * Math.PI * 2;
+      this.curve = (Math.random() - .5) * Math.min(75, width * .1);
+      this.height = Math.max(115, Math.min(height * (.30 + Math.random() * .16), 265));
+      this.headSize = Math.min(25 + Math.random() * 13, width * .055);
+      this.style = flowerStyles[Math.floor(Math.random() * flowerStyles.length)];
+      this.petalRotation = Math.random() * Math.PI * 2;
+      this.petalCount = this.style.type === 'sunflower' ? 18 : this.style.type === 'rose' ? 13 : 9;
       this.leaves = [
-        { at: .24 + Math.random() * .08, size: 20 + Math.random() * 11, side: -1 },
-        { at: .43 + Math.random() * .09, size: 22 + Math.random() * 12, side: 1 },
-        { at: .64 + Math.random() * .08, size: 16 + Math.random() * 10, side: -1 }
+        { at: .25 + Math.random() * .07, side: Math.random() > .5 ? 1 : -1, size: 19 + Math.random() * 9 },
+        { at: .48 + Math.random() * .08, side: Math.random() > .5 ? 1 : -1, size: 17 + Math.random() * 10 },
+        { at: .69 + Math.random() * .06, side: Math.random() > .5 ? 1 : -1, size: 14 + Math.random() * 8 }
       ];
-      this.pollenDone = false;
+      this.pollenMade = false;
     }
 
-    point(t) {
-      const cx = (this.startX + this.x) / 2 + this.curve;
-      const cy = (this.startY + this.y) / 2;
+    stemPoint(t) {
+      const cx = (this.baseX + this.x) / 2 + this.curve;
+      const cy = (this.baseY + this.y + this.height * .12) / 2;
       const u = 1 - t;
-      const px = u*u*this.startX + 2*u*t*cx + t*t*this.x;
-      const py = u*u*this.startY + 2*u*t*cy + t*t*this.y;
-      const dx = 2*u*(cx-this.startX) + 2*t*(this.x-cx);
-      const dy = 2*u*(cy-this.startY) + 2*t*(this.y-cy);
+      const px = u*u*this.baseX + 2*u*t*cx + t*t*this.x;
+      const py = u*u*this.baseY + 2*u*t*cy + t*t*(this.y + this.height * .12);
+      const dx = 2*u*(cx-this.baseX) + 2*t*(this.x-cx);
+      const dy = 2*u*(cy-this.baseY) + 2*t*(this.y + this.height*.12-cy);
       return { x: px, y: py, angle: Math.atan2(dy, dx) };
     }
 
     update(dt, time) {
-      if (this.growth < 1) {
-        this.growth = Math.min(1, this.growth + .016 * dt);
-      } else if (this.bloom < 1) {
-        this.bloom = Math.min(1, this.bloom + .022 * dt);
-        if (!this.pollenDone && this.bloom > .45) {
-          this.pollenDone = true;
-          for (let i = 0; i < 8; i++) {
-            particles.push(new Pollen(this.x, this.y, this.palette.tip));
-          }
+      if (this.growth < 1) this.growth = Math.min(1, this.growth + .012 * dt);
+      else if (this.open < 1) {
+        this.open = Math.min(1, this.open + .018 * dt);
+        if (!this.pollenMade && this.open > .6) {
+          this.pollenMade = true;
+          for (let i = 0; i < 7; i++) pollen.push(new PollenParticle(this.x, this.y, this.style.petals[2]));
         }
       }
-      this.sway = time * .00055 + this.seed;
+      this.phase = time * .00038 + this.petalRotation;
     }
 
     draw(time) {
       const t = this.growth;
-      const tip = this.point(t);
-      const controlX = (this.startX + this.x) / 2 + this.curve;
-      const controlY = (this.startY + this.y) / 2;
+      const tip = this.stemPoint(t);
+      const cx = (this.baseX + this.x) / 2 + this.curve;
+      const cy = (this.baseY + this.y + this.height * .12) / 2;
 
-      // Thin, naturally bending stem with a light-catching edge.
+      // A slim curved stem, with a subtle light edge.
       ctx.save();
       ctx.beginPath();
-      ctx.moveTo(this.startX, this.startY);
-      ctx.quadraticCurveTo(controlX, controlY, tip.x, tip.y);
-      const stem = ctx.createLinearGradient(this.startX, this.startY, tip.x, tip.y);
-      stem.addColorStop(0, '#173d2b');
-      stem.addColorStop(.48, '#347a42');
-      stem.addColorStop(1, '#83b96c');
-      ctx.strokeStyle = stem;
-      ctx.lineWidth = 2.1;
+      ctx.moveTo(this.baseX, this.baseY);
+      ctx.quadraticCurveTo(cx, cy, tip.x, tip.y);
+      const stemGrad = ctx.createLinearGradient(this.baseX, this.baseY, tip.x, tip.y);
+      stemGrad.addColorStop(0, '#244d32');
+      stemGrad.addColorStop(.55, '#477e4b');
+      stemGrad.addColorStop(1, '#6d9b59');
+      ctx.strokeStyle = stemGrad;
+      ctx.lineWidth = 2.3;
       ctx.lineCap = 'round';
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(this.startX - 1, this.startY);
-      ctx.quadraticCurveTo(controlX - 1, controlY, tip.x - 1, tip.y);
-      ctx.strokeStyle = 'rgba(190,229,154,.24)';
-      ctx.lineWidth = .7;
       ctx.stroke();
       ctx.restore();
 
       this.leaves.forEach(leaf => {
         if (t > leaf.at) {
-          const p = this.point(leaf.at);
-          this.drawLeaf(p.x, p.y, p.angle + leaf.side * 1.05, leaf.size);
+          const p = this.stemPoint(leaf.at);
+          this.drawLeaf(p.x, p.y, p.angle + leaf.side * 1.15, leaf.size);
         }
       });
 
-      if (t >= 1 && this.bloom > 0) {
-        const eased = Math.sin(this.bloom * Math.PI / 2);
+      if (t >= 1 && this.open > 0) {
         ctx.save();
         ctx.translate(this.x, this.y);
-        ctx.rotate(Math.sin(this.sway) * .055 + this.headTilt);
-        const len = this.length * eased;
-        const wid = this.petalWidth * eased;
-
-        // A tiny green calyx joins the flower head naturally to its stem.
-        ctx.fillStyle = '#477d43';
-        ctx.beginPath();
-        ctx.ellipse(0, 5 * eased, 7 * eased, 3 * eased, 0, 0, Math.PI * 2);
-        ctx.fill();
-
-        const halo = ctx.createRadialGradient(0, 0, 1, 0, 0, len * 1.8);
-        halo.addColorStop(0, this.rgba(this.palette.glow, .2));
-        halo.addColorStop(1, this.rgba(this.palette.glow, 0));
-        ctx.fillStyle = halo;
-        ctx.beginPath();
-        ctx.arc(0, 0, len * 1.8, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Five or six broad, softly pointed petals create the loose flower shape
-        // seen in the reference: bright, open and slightly irregular.
-        for (let i = 0; i < this.petalCount; i++) {
-          const angle = (i - (this.petalCount - 1) / 2) * .43;
-          this.drawWildPetal(angle, len, wid, i);
-        }
-
-        // A smaller inner layer adds a little fullness without making a rosette.
-        for (let i = 0; i < 3; i++) {
-          this.drawWildPetal((i - 1) * .48 + .12, len * .68, wid * .66, i + 2, true);
-        }
-
-        this.drawCenter(Math.max(2.2, len * .075));
+        ctx.rotate(Math.sin(this.phase) * .035);
+        const bloom = Math.sin(this.open * Math.PI / 2);
+        this.drawSepals(bloom);
+        if (this.style.type === 'sunflower') this.drawSunflower(bloom);
+        else if (this.style.type === 'rose') this.drawRose(bloom);
+        else this.drawDaisy(bloom);
         ctx.restore();
       }
-    }
-
-    rgba(hex, alpha) {
-      const n = parseInt(hex.replace('#', ''), 16);
-      return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha})`;
     }
 
     drawLeaf(x, y, angle, size) {
       ctx.save();
       ctx.translate(x, y);
       ctx.rotate(angle);
-      ctx.shadowColor = 'rgba(12,55,28,.28)';
-      ctx.shadowBlur = 5;
+      const grad = ctx.createLinearGradient(0, -size*.45, size*1.55, size*.3);
+      grad.addColorStop(0, '#245536');
+      grad.addColorStop(.48, this.style.leaf);
+      grad.addColorStop(1, '#8eb66e');
       ctx.beginPath();
       ctx.moveTo(0, 0);
-      ctx.bezierCurveTo(size*.35, -size*.72, size*1.1, -size*.46, size*1.55, 0);
-      ctx.bezierCurveTo(size*1.1, size*.42, size*.35, size*.55, 0, 0);
-      const g = ctx.createLinearGradient(0, -size*.4, size*1.5, size*.2);
-      g.addColorStop(0, '#17472c');
-      g.addColorStop(.5, '#438c4c');
-      g.addColorStop(1, '#a4cc79');
-      ctx.fillStyle = g;
+      ctx.bezierCurveTo(size*.38, -size*.62, size*1.12, -size*.43, size*1.55, 0);
+      ctx.bezierCurveTo(size*1.12, size*.42, size*.38, size*.55, 0, 0);
+      ctx.fillStyle = grad;
       ctx.fill();
-      ctx.shadowBlur = 0;
       ctx.beginPath();
       ctx.moveTo(0, 0);
-      ctx.quadraticCurveTo(size*.75, -size*.05, size*1.45, 0);
-      ctx.strokeStyle = 'rgba(224,255,207,.62)';
+      ctx.quadraticCurveTo(size*.75, -size*.04, size*1.48, 0);
+      ctx.strokeStyle = 'rgba(225,244,202,.62)';
       ctx.lineWidth = .85;
       ctx.stroke();
+      for (let i = 1; i <= 3; i++) {
+        const px = size * i * .31;
+        ctx.beginPath();
+        ctx.moveTo(px, 0);
+        ctx.lineTo(px + size*.17, -size*.14);
+        ctx.moveTo(px, 0);
+        ctx.lineTo(px + size*.17, size*.14);
+        ctx.strokeStyle = 'rgba(225,244,202,.28)';
+        ctx.lineWidth = .65;
+        ctx.stroke();
+      }
       ctx.restore();
     }
 
-    drawWildPetal(angle, length, w, index, inner = false) {
+    drawSepals(scale) {
+      ctx.save();
+      ctx.scale(scale, scale);
+      for (let i = 0; i < 5; i++) {
+        ctx.save();
+        ctx.rotate(i * Math.PI * 2 / 5);
+        ctx.beginPath();
+        ctx.moveTo(0, 3);
+        ctx.quadraticCurveTo(-4, 10, 0, 16);
+        ctx.quadraticCurveTo(4, 10, 0, 3);
+        ctx.fillStyle = '#47794a';
+        ctx.fill();
+        ctx.restore();
+      }
+      ctx.restore();
+    }
+
+    // Soft oval petals with rounded tips and subtle tonal variation.
+    drawRoundedPetal(angle, length, width, colors, tilt = 0) {
       ctx.save();
       ctx.rotate(angle);
-      const lean = (index % 2 ? 1 : -1) * length * .07;
-      const g = ctx.createLinearGradient(0, -length*.12, lean, length);
-      g.addColorStop(0, this.palette.shade);
-      g.addColorStop(.3, this.palette.base);
-      g.addColorStop(.72, this.palette.mid);
-      g.addColorStop(1, this.palette.tip);
-
-      // Slightly uneven petal tips keep the bloom from looking mechanically perfect.
+      ctx.translate(0, -length * .42);
+      ctx.rotate(tilt);
+      const grad = ctx.createLinearGradient(-width, -length*.55, width, length*.55);
+      grad.addColorStop(0, colors[0]);
+      grad.addColorStop(.52, colors[1]);
+      grad.addColorStop(1, colors[2]);
       ctx.beginPath();
-      ctx.moveTo(0, 1);
-      ctx.bezierCurveTo(-w*.95, -length*.16, -w*1.05 + lean, length*.43, lean, length);
-      ctx.bezierCurveTo(w*1.05 + lean, length*.48, w*.9, -length*.14, 0, 1);
-      ctx.fillStyle = g;
-      ctx.shadowColor = this.palette.glow;
-      ctx.shadowBlur = inner ? 5 : 9;
+      ctx.moveTo(0, length*.58);
+      ctx.bezierCurveTo(-width*.92, length*.32, -width*.92, -length*.32, 0, -length*.55);
+      ctx.bezierCurveTo(width*.92, -length*.32, width*.92, length*.32, 0, length*.58);
+      ctx.fillStyle = grad;
       ctx.fill();
-      ctx.shadowBlur = 0;
-
-      // Soft central vein and a glossy highlight on every petal.
       ctx.beginPath();
-      ctx.moveTo(0, length*.08);
-      ctx.quadraticCurveTo(lean*.25, length*.48, lean, length*.88);
-      ctx.strokeStyle = 'rgba(255,255,255,.32)';
-      ctx.lineWidth = .8;
+      ctx.moveTo(0, length*.42);
+      ctx.quadraticCurveTo(width*.04, 0, 0, -length*.42);
+      ctx.strokeStyle = 'rgba(255,255,255,.23)';
+      ctx.lineWidth = .65;
       ctx.stroke();
-      ctx.beginPath();
-      ctx.ellipse(-w*.2, length*.38, w*.13, length*.2, -.12, 0, Math.PI*2);
-      ctx.fillStyle = 'rgba(255,255,255,.12)';
-      ctx.fill();
       ctx.restore();
     }
 
-    drawCenter(r) {
-      ctx.save();
-      const g = ctx.createRadialGradient(-r*.3, -r*.3, .2, 0, 0, r*1.4);
-      g.addColorStop(0, '#fff6bd');
-      g.addColorStop(.55, this.palette.center);
-      g.addColorStop(1, '#d98532');
+    drawDaisy(scale) {
+      const r = this.headSize * scale;
+      const petalLength = r * 1.13;
+      const petalWidth = r * .35;
+      const colors = this.style.petals;
+      for (let i = 0; i < this.petalCount; i++) {
+        const a = this.petalRotation + i * Math.PI * 2 / this.petalCount;
+        this.drawRoundedPetal(a, petalLength, petalWidth, colors, Math.sin(i*4.1)*.045);
+      }
+      const centerGrad = ctx.createRadialGradient(-r*.22, -r*.24, 1, 0, 0, r*.42);
+      centerGrad.addColorStop(0, '#fff0a8');
+      centerGrad.addColorStop(.55, this.style.center);
+      centerGrad.addColorStop(1, '#b8752d');
       ctx.beginPath();
-      ctx.arc(0, 0, r, 0, Math.PI*2);
-      ctx.fillStyle = g;
-      ctx.shadowColor = this.palette.center;
-      ctx.shadowBlur = 8;
+      ctx.arc(0, 0, r*.36, 0, Math.PI*2);
+      ctx.fillStyle = centerGrad;
       ctx.fill();
-      ctx.restore();
+      for (let i = 0; i < 24; i++) {
+        const a = i * 2.399;
+        const d = Math.sqrt(i / 24) * r * .28;
+        ctx.beginPath();
+        ctx.arc(Math.cos(a)*d, Math.sin(a)*d, .45 + (i%3)*.18, 0, Math.PI*2);
+        ctx.fillStyle = i%2 ? '#fff0ad' : '#9e642e';
+        ctx.fill();
+      }
+    }
+
+    drawSunflower(scale) {
+      const r = this.headSize * scale;
+      for (let i = 0; i < 20; i++) {
+        const a = this.petalRotation + i * Math.PI * 2 / 20;
+        this.drawRoundedPetal(a, r*1.35, r*.25, ['#c9811b', '#f3bd43', '#ffe18a'], Math.sin(i*3.7)*.035);
+      }
+      const disk = ctx.createRadialGradient(-r*.22, -r*.24, 1, 0, 0, r*.63);
+      disk.addColorStop(0, '#a36a37');
+      disk.addColorStop(.55, '#704525');
+      disk.addColorStop(1, '#3f2a20');
+      ctx.beginPath();
+      ctx.arc(0, 0, r*.62, 0, Math.PI*2);
+      ctx.fillStyle = disk;
+      ctx.fill();
+      for (let i = 0; i < 115; i++) {
+        const a = i * 2.399;
+        const d = Math.sqrt(i / 115) * r * .55;
+        const x = Math.cos(a)*d;
+        const y = Math.sin(a)*d;
+        ctx.beginPath();
+        ctx.ellipse(x, y, 1.05, 1.45, a, 0, Math.PI*2);
+        ctx.fillStyle = i%3 === 0 ? '#d6a052' : i%3 === 1 ? '#3b261b' : '#8e592d';
+        ctx.fill();
+      }
+    }
+
+    drawRose(scale) {
+      const r = this.headSize * scale;
+      const rings = [
+        { count: 9, radius: r*.79, length: r*.93, width: r*.42, alpha: 1 },
+        { count: 7, radius: r*.48, length: r*.75, width: r*.39, alpha: .98 },
+        { count: 5, radius: r*.22, length: r*.56, width: r*.35, alpha: .96 }
+      ];
+      rings.forEach((ring, ringIndex) => {
+        for (let i = 0; i < ring.count; i++) {
+          const a = this.petalRotation + i * Math.PI * 2 / ring.count + ringIndex*.28;
+          ctx.save();
+          ctx.rotate(a);
+          ctx.translate(0, -ring.radius);
+          ctx.globalAlpha = ring.alpha;
+          this.drawRoundedPetal(0, ring.length, ring.width, this.style.petals, (i%2 ? .07 : -.04));
+          ctx.restore();
+        }
+      });
+      const center = ctx.createRadialGradient(-r*.12, -r*.12, 1, 0, 0, r*.27);
+      center.addColorStop(0, '#f8c5a5');
+      center.addColorStop(.65, this.style.petals[1]);
+      center.addColorStop(1, this.style.petals[0]);
+      ctx.beginPath();
+      ctx.arc(0, 0, r*.24, 0, Math.PI*2);
+      ctx.fillStyle = center;
+      ctx.fill();
     }
   }
 
   class Firefly {
-    constructor() {
-      this.reset(true);
-    }
-
+    constructor() { this.reset(true); }
     reset(initial = false) {
       this.x = Math.random() * width;
       this.y = Math.random() * height;
       this.phase = Math.random() * Math.PI * 2;
-      this.speed = .12 + Math.random() * .25;
-      this.size = 1 + Math.random() * 1.5;
-      this.drift = (Math.random() - .5) * .22;
-
-      if (!initial && this.y < -10) {
-        this.y = height + 10;
-      }
+      this.speed = .1 + Math.random() * .22;
+      this.size = .8 + Math.random() * 1.2;
+      this.drift = (Math.random() - .5) * .18;
+      if (!initial && this.y < -10) this.y = height + 10;
     }
-
     update(dt) {
-      this.phase += .035 * dt;
+      this.phase += .03 * dt;
       this.x += this.drift * dt;
       this.y -= this.speed * dt;
-
-      if (
-        this.y < -12 ||
-        this.x < -15 ||
-        this.x > width + 15
-      ) {
-        this.reset();
-      }
+      if (this.y < -12 || this.x < -15 || this.x > width + 15) this.reset();
     }
-
     draw() {
-      const glow = .35 + (Math.sin(this.phase) + 1) * .3;
-
       nctx.save();
-      nctx.globalAlpha = glow;
-      nctx.fillStyle = '#ffe9a5';
-      nctx.shadowColor = '#ffdf83';
-      nctx.shadowBlur = 15;
-
+      nctx.globalAlpha = .2 + (Math.sin(this.phase) + 1) * .24;
+      nctx.fillStyle = '#ffe8a8';
+      nctx.shadowColor = '#ffe8a8';
+      nctx.shadowBlur = 9;
       nctx.beginPath();
-      nctx.arc(this.x,this.y,this.size,0,Math.PI*2);
+      nctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
       nctx.fill();
-
       nctx.restore();
     }
   }
@@ -339,94 +360,76 @@
   class Butterfly {
     constructor() {
       this.x = Math.random() * width;
-      this.y = height*.25 + Math.random() * height*.5;
-      this.phase = Math.random() * 6;
-      this.speed = .25 + Math.random() * .28;
-      this.scale = .65 + Math.random() * .45;
-      this.hue = Math.random() > .5 ? '#f6b6d6' : '#cbb7f3';
+      this.y = height*.22 + Math.random()*height*.48;
+      this.phase = Math.random()*6;
+      this.speed = .18 + Math.random()*.22;
+      this.scale = .55 + Math.random()*.4;
+      this.color = Math.random() > .5 ? '#e8a9c5' : '#c6b2e8';
     }
-
     update(dt) {
-      this.phase += .09 * dt;
-      this.x += Math.cos(this.phase*.25)*.55*dt + this.speed*dt;
-      this.y += Math.sin(this.phase*.7)*.34*dt;
-
-      if (this.x > width + 45) {
-        this.x = -35;
-        this.y = height*.25 + Math.random()*height*.5;
+      this.phase += .075*dt;
+      this.x += this.speed*dt + Math.cos(this.phase*.25)*.35*dt;
+      this.y += Math.sin(this.phase*.7)*.28*dt;
+      if (this.x > width+35) {
+        this.x = -30;
+        this.y = height*.2 + Math.random()*height*.5;
       }
     }
-
     draw() {
-      const flap = Math.abs(Math.sin(this.phase))*7 + 2;
-
+      const flap = 2 + Math.abs(Math.sin(this.phase))*5;
       nctx.save();
-      nctx.translate(this.x,this.y);
-      nctx.scale(this.scale,this.scale);
-      nctx.fillStyle = this.hue;
-      nctx.shadowColor = this.hue;
-      nctx.shadowBlur = 10;
-
+      nctx.translate(this.x, this.y);
+      nctx.scale(this.scale, this.scale);
+      nctx.fillStyle = this.color;
+      nctx.shadowColor = this.color;
+      nctx.shadowBlur = 6;
       nctx.beginPath();
-      nctx.ellipse(-flap*.45,0,flap,5,-.35,0,Math.PI*2);
+      nctx.ellipse(-flap*.45, 0, flap, 4.5, -.35, 0, Math.PI*2);
+      nctx.ellipse(flap*.45, 0, flap, 4.5, .35, 0, Math.PI*2);
       nctx.fill();
-
-      nctx.beginPath();
-      nctx.ellipse(flap*.45,0,flap,5,.35,0,Math.PI*2);
-      nctx.fill();
-
       nctx.strokeStyle = 'rgba(255,245,255,.8)';
-      nctx.lineWidth = 1.2;
+      nctx.lineWidth = 1;
       nctx.beginPath();
-      nctx.moveTo(0,-3);
-      nctx.lineTo(0,4);
+      nctx.moveTo(0, -3);
+      nctx.lineTo(0, 4);
       nctx.stroke();
-
       nctx.restore();
     }
   }
 
   function seedNature() {
     fireflies = Array.from(
-      {
-        length: Math.min(
-          42,
-          Math.max(18, Math.floor(width*height/26000))
-        )
-      },
+      { length: Math.min(35, Math.max(14, Math.floor(width*height/30000))) },
       () => new Firefly()
     );
-
     butterflies = Array.from(
       { length: width < 600 ? 2 : 4 },
       () => new Butterfly()
     );
   }
 
-  function addFlower(x,y) {
-    flowers.push(new Flower(x,y));
-
+  function addFlower(x, y) {
+    flowers.push(new Flower(x, y));
     instruction.textContent = flowers.length === 1
-      ? 'Your first flower is beginning to bloom. Keep going.'
-      : `${flowers.length} little blooms are growing in your garden.`;
-
-    document.getElementById('gardenTip').classList.add('tip-faded');
+      ? 'A little flower is blooming just for you.'
+      : `${flowers.length} lovely flowers are growing in your garden.`;
+    const tip = document.getElementById('gardenTip');
+    if (tip) tip.classList.add('tip-faded');
   }
 
   function stopAutoBloom() {
     autoBlooming = false;
     clearInterval(autoBloomTimer);
     autoBloomTimer = null;
-
     autoBtn.classList.remove('active');
-    autoBtn.setAttribute('aria-pressed','false');
-    autoBtn.querySelector('span:last-child').textContent = 'Auto bloom';
+    autoBtn.setAttribute('aria-pressed', 'false');
+    const label = autoBtn.querySelector('span:last-child');
+    if (label) label.textContent = 'Auto bloom';
   }
 
   gardenCanvas.addEventListener('pointerdown', event => {
     if (!entered) return;
     if (event.pointerType === 'mouse' && event.button !== 0) return;
-
     addFlower(event.clientX, event.clientY);
   });
 
@@ -434,10 +437,7 @@
     entered = true;
     welcomeScreen.classList.add('is-hidden');
     gardenUI.classList.add('is-visible');
-
-    setTimeout(() => {
-      welcomeScreen.setAttribute('aria-hidden','true');
-    },950);
+    setTimeout(() => welcomeScreen.setAttribute('aria-hidden', 'true'), 950);
   });
 
   autoBtn.addEventListener('click', () => {
@@ -445,91 +445,70 @@
       stopAutoBloom();
       return;
     }
-
     autoBlooming = true;
     autoBtn.classList.add('active');
-    autoBtn.setAttribute('aria-pressed','true');
-    autoBtn.querySelector('span:last-child').textContent = 'Pause bloom';
-
+    autoBtn.setAttribute('aria-pressed', 'true');
+    const label = autoBtn.querySelector('span:last-child');
+    if (label) label.textContent = 'Pause bloom';
     autoBloomTimer = setInterval(() => {
-      const margin = Math.min(55,width*.12);
-
+      const margin = Math.min(55, width*.12);
       addFlower(
-        margin + Math.random() * (width-margin*2),
-        height*.38 + Math.random() * height*.42
+        margin + Math.random()*(width-margin*2),
+        height*.38 + Math.random()*height*.42
       );
-    },520);
+    }, 680);
   });
 
   clearBtn.addEventListener('click', () => {
     flowers = [];
-    particles = [];
-
+    pollen = [];
     instruction.textContent = 'A fresh little beginning. Tap anywhere to plant a flower.';
-    document.getElementById('gardenTip').classList.remove('tip-faded');
-
+    const tip = document.getElementById('gardenTip');
+    if (tip) tip.classList.remove('tip-faded');
     stopAutoBloom();
   });
 
-  // No audio file is bundled in this version.
+  // This version keeps the existing sound control; an audio file is needed for music playback.
   soundBtn.addEventListener('click', () => {
-    soundBtn.title = 'Ambient music is not included in this version.';
+    soundBtn.title = 'Add an audio file to enable garden music.';
     soundBtn.innerHTML = '♫ <span>Sound off</span>';
   });
 
   function drawAtmosphere(time) {
-    nctx.clearRect(0,0,width,height);
-
-    // Tiny stars
-    for (let i = 0; i < 46; i++) {
+    nctx.clearRect(0, 0, width, height);
+    for (let i = 0; i < 42; i++) {
       const x = (i*197.3) % width;
-      const y = (i*113.7) % Math.max(1,height*.72);
-      const twinkle = .18 + (Math.sin(time*.001+i*2)*.5+.5)*.35;
-
-      nctx.globalAlpha = twinkle;
-      nctx.fillStyle = '#f8eaff';
+      const y = (i*113.7) % Math.max(1, height*.72);
+      nctx.globalAlpha = .12 + (Math.sin(time*.001+i*2)*.5+.5)*.24;
+      nctx.fillStyle = '#fff0d5';
       nctx.beginPath();
-      nctx.arc(x,y,(i%4===0)?1.15:.65,0,Math.PI*2);
+      nctx.arc(x, y, i%4===0 ? 1.05 : .6, 0, Math.PI*2);
       nctx.fill();
     }
-
     nctx.globalAlpha = 1;
-
     fireflies.forEach(f => {
       f.update(frameDelta);
       f.draw();
     });
-
     butterflies.forEach(b => {
       b.update(frameDelta);
       b.draw();
     });
   }
 
-  let frameDelta = 1;
-
   function animate(time = 0) {
-    frameDelta = Math.min(
-      2.2,
-      Math.max(.35,(time-lastTime)/16.67 || 1)
-    );
-
+    frameDelta = Math.min(2.2, Math.max(.35, (time-lastTime)/16.67 || 1));
     lastTime = time;
-
-    ctx.clearRect(0,0,width,height);
-
+    ctx.clearRect(0, 0, width, height);
     flowers.forEach(f => {
-      f.update(frameDelta,time);
+      f.update(frameDelta, time);
       f.draw(time);
     });
-
-    particles = particles.filter(p => p.alpha > 0);
-
-    particles.forEach(p => {
+    pollen = pollen.filter(p => p.alpha > 0);
+    pollen.forEach(p => {
       p.update(frameDelta);
       p.draw();
     });
-
     drawAtmosphere(time);
     requestAnimationFrame(animate);
   }
