@@ -1,4 +1,3 @@
-
 /* ==========================================
    MOONLIT BLOOM — COMPLETE GARDEN SCRIPT
    ========================================== */
@@ -863,30 +862,34 @@ gardenCanvas.addEventListener("pointerdown", plantFromPointer);
 
 
 // ==========================================
-// ENTER GARDEN
+// ENTER GARDEN — FIXED
 // ==========================================
 
 enterBtn?.addEventListener("click", () => {
     entered = true;
 
+    // Hide welcome screen using the correct CSS class.
     if (welcomeScreen) {
-        welcomeScreen.classList.add("hidden");
+        welcomeScreen.classList.add("is-hidden");
     }
 
+    // Show garden interface using the correct CSS class.
     if (gardenUI) {
-        gardenUI.classList.remove("hidden");
+        gardenUI.classList.add("is-visible");
     }
 
-    // IMPORTANT: Start with an empty garden.
+    // Start with an empty garden.
     flowers = [];
     pollen = [];
 
     if (instruction) {
-        instruction.textContent = "Tap anywhere to plant your first flower";
+        instruction.textContent =
+            "Tap anywhere to plant your first flower";
     }
 
     if (gardenTip) {
-        gardenTip.textContent = "Every flower begins with a little touch 🌱";
+        gardenTip.textContent =
+            "Every flower begins with a little touch 🌱";
     }
 });
 
@@ -902,11 +905,13 @@ clearBtn?.addEventListener("click", () => {
     stopAutoBloom();
 
     if (instruction) {
-        instruction.textContent = "Your garden is empty. Plant a new flower!";
+        instruction.textContent =
+            "Your garden is empty. Plant a new flower!";
     }
 
     if (gardenTip) {
-        gardenTip.textContent = "Tap anywhere to grow something beautiful 🌱";
+        gardenTip.textContent =
+            "Tap anywhere to grow something beautiful 🌱";
     }
 });
 
@@ -925,7 +930,8 @@ function startAutoBloom() {
     }
 
     if (instruction) {
-        instruction.textContent = "Watch your magical garden grow ✨";
+        instruction.textContent =
+            "Watch your magical garden grow ✨";
     }
 
     autoBloomTimer = setInterval(() => {
@@ -954,7 +960,8 @@ autoBtn?.addEventListener("click", () => {
         stopAutoBloom();
 
         if (instruction) {
-            instruction.textContent = "Tap anywhere to plant a flower";
+            instruction.textContent =
+                "Tap anywhere to plant a flower";
         }
     } else {
         startAutoBloom();
